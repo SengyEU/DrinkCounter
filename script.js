@@ -39,23 +39,20 @@ function renderPeople(select, people) {
     let blank = document.createElement("option");
     blank.disabled = true;
     blank.selected = true;
-    select.value = blank;
-
+    blank.textContent = "Vyber uživatele";
     select.append(blank);
 
     Object.values(people).forEach(p => {
-
         let option = document.createElement("option");
         option.value = p.ID;
         option.textContent = p.name;
-
         select.append(option);
     });
 
     loadSavedUser(select);
 }
 
-function renderTypes(form, types) {
+function renderTypes(container, types) {
 
     Object.values(types).forEach(t => {
 
@@ -85,20 +82,18 @@ function renderTypes(form, types) {
         });
 
         plus.addEventListener("click", () => {
-            if(input.valueAsNumber < Number(input.max)) input.valueAsNumber++;
+            if (input.valueAsNumber < Number(input.max)) input.valueAsNumber++;
         });
 
         wrapper.append(label, minus, input, plus);
-        form.append(wrapper);
+        container.append(wrapper);
     });
 }
 
 function renderSubmit(form) {
-
     let submit = document.createElement("button");
     submit.type = "submit";
-    submit.innerHTML = "Odeslat";
-
+    submit.innerHTML = "Uložit";
     form.append(submit);
 }
 
@@ -109,7 +104,6 @@ function saveUser(userId) {
 }
 
 function loadSavedUser(select) {
-
     let userId =
         localStorage.getItem("lastUser") ||
         sessionStorage.getItem("lastUser") ||
@@ -132,13 +126,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const userSelect = document.createElement("select");
     userSelect.id = "userSelect";
-    form.append(userSelect);
+    document.querySelector(".form-header").append(userSelect);
+
+    const drinksContainer = document.createElement("div");
+    drinksContainer.classList.add("drinks-container");
+    form.append(drinksContainer);
 
     const people = await getPeopleList(url);
     renderPeople(userSelect, people);
 
     const types = await getTypesList(url);
-    renderTypes(form, types);
+    renderTypes(drinksContainer, types);
 
     renderSubmit(form);
 
@@ -146,7 +144,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.preventDefault();
 
         const selectedUser = userSelect.value;
-
         const drinks = [];
         const inputs = form.querySelectorAll("input[type='number']");
 
@@ -166,9 +163,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             await saveDrinks(url, payload);
             alert("Uloženo!");
             saveUser(selectedUser);
-
             inputs.forEach(i => i.value = 0);
-
         } catch (err) {
             alert("Chyba při ukládání");
         }
