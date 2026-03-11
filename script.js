@@ -1,9 +1,20 @@
-const url = "http://lmpss3.dev.spsejecna.net/procedure.php";
+const username = "coffe";
+const password = "kafe";
+const url = "http://lmpss3.dev.spsejecna.net/procedure2.php";
+
+const AUTH_HEADER = make_base_auth(username, password);
+
+function make_base_auth(user, password) {
+    return "Basic " + btoa(user + ":" + password);
+}
 
 async function getPeopleList(apiUrl) {
     const res = await fetch(`${apiUrl}?cmd=getPeopleList`, { 
-        method: 'GET', 
-        credentials: 'include' 
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+            'Authorization': AUTH_HEADER
+        }
     });
 
     if (!res.ok) throw new Error(`getPeopleList HTTP ${res.status}`);
@@ -12,8 +23,11 @@ async function getPeopleList(apiUrl) {
 
 async function getTypesList(apiUrl) {
     const res = await fetch(`${apiUrl}?cmd=getTypesList`, { 
-        method: 'GET', 
-        credentials: 'include' 
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+            'Authorization': AUTH_HEADER
+        }
     });
 
     if (!res.ok) throw new Error(`getTypesList HTTP ${res.status}`);
@@ -24,7 +38,8 @@ async function saveDrinks(apiUrl, data) {
     const res = await fetch(`${apiUrl}?cmd=saveDrinks`, {
         method: "POST",
         headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Authorization": AUTH_HEADER
         },
         body: JSON.stringify(data),
         credentials: 'include'
