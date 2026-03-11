@@ -1,6 +1,6 @@
 const username = "coffe";
 const password = "kafe";
-const url = "http://lmpss3.dev.spsejecna.net/procedure2.php";
+const url = "https://crm.skch.cz/ajax0/procedure2.php";
 
 const AUTH_HEADER = make_base_auth(username, password);
 
