@@ -52,7 +52,7 @@ async function saveDrinks(apiUrl, data) {
 function renderPeople(select, people) {
 
     let blank = document.createElement("option");
-    blank.disabled = false;
+    blank.disabled = true;
     blank.selected = true;
     blank.textContent = "Vyber uživatele";
     select.append(blank);
