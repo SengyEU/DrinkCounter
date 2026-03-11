@@ -93,6 +93,7 @@ function renderTypes(container, types) {
 function renderSubmit(form) {
     let submit = document.createElement("button");
     submit.type = "submit";
+    submit.id = "submitButton";
     submit.innerHTML = "Uložit";
     form.append(submit);
 }
@@ -159,13 +160,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             drinks: drinks
         };
 
+        const submitButton = document.getElementById("submitButton");
+
         try {
             await saveDrinks(url, payload);
-            alert("Uloženo!");
+            submitButton.innerHTML = "Uloženo!"
             saveUser(selectedUser);
             inputs.forEach(i => i.value = 0);
+            setTimeout(() => {
+                submitButton.innerHTML = "Uložit"
+            }, 2500);
         } catch (err) {
-            alert("Chyba při ukládání");
+            alert(err);
         }
     });
 
