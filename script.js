@@ -52,7 +52,7 @@ async function saveDrinks(apiUrl, data) {
 function renderPeople(select, people) {
 
     let blank = document.createElement("option");
-    blank.disabled = true;
+    blank.disabled = false;
     blank.selected = true;
     blank.textContent = "Vyber uživatele";
     select.append(blank);
@@ -164,10 +164,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const inputs = form.querySelectorAll("input[type='number']");
 
         inputs.forEach(input => {
-            drinks.push({
-                type: input.dataset.type,
-                value: parseInt(input.value) || 0
-            });
+            let amount = parseInt(input.value) || 0;
+            if (amount > 0) {
+                drinks.push({
+                    type: input.dataset.type,
+                    value: amount
+                });
+            }
         });
 
         const payload = {
@@ -177,6 +180,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const submitButton = document.getElementById("submitButton");
 
+        if(selectedUser == "Vyber uživatele") {
+            submitButton.innerHTML = "Musíš vybrat uživatele!"
+            setTimeout(() => {
+                submitButton.innerHTML = "Uložit"
+            }, 2000);
+            return;
+        }
+
+        if(drinks.length == 0) {
+            submitButton.innerHTML = "Musíš zadat aspoň jeden drink!"
+            setTimeout(() => {
+                submitButton.innerHTML = "Uložit"
+            }, 2000);
+            return;
+        }
+
         try {
             await saveDrinks(url, payload);
             submitButton.innerHTML = "Uloženo!"
@@ -184,7 +203,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             inputs.forEach(i => i.value = 0);
             setTimeout(() => {
                 submitButton.innerHTML = "Uložit"
-            }, 2500);
+            }, 2000);
         } catch (err) {
             alert(err);
         }
