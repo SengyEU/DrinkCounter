@@ -3,20 +3,48 @@ const password = "kafe";
 const url = "https://crm.skch.cz/ajax0/procedure2.php";
 
 const AUTH_HEADER = make_base_auth(username, password);
+const QUEUE_KEY = "offline_drinks_queue";
 
 function make_base_auth(user, password) {
     return "Basic " + btoa(user + ":" + password);
 }
 
+function addToOfflineQueue(payload) {
+    const queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
+    queue.push(payload);
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    console.log("Data uložena do offline fronty.");
+}
+
+async function syncOfflineData() {
+    if (!navigator.onLine) return;
+
+    const queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
+    if (queue.length === 0) return;
+
+    console.log(`Synchronizace: nalezeno ${queue.length} položek k odeslání...`);
+    const remainingQueue = [];
+
+    for (const payload of queue) {
+        try {
+            await saveDrinks(url, payload);
+            console.log("Položka úspěšně synchronizována.");
+        } catch (err) {
+            console.error("Synchronizace položky selhala, zůstává ve frontě:", err);
+            remainingQueue.push(payload);
+        }
+    }
+
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(remainingQueue));
+}
+
+window.addEventListener('online', syncOfflineData);
+
 async function getPeopleList(apiUrl) {
     const res = await fetch(`${apiUrl}?cmd=getPeopleList`, { 
         method: 'GET',
-        credentials: 'include',
-        headers: {
-            'Authorization': AUTH_HEADER
-        }
+        headers: { 'Authorization': AUTH_HEADER }
     });
-
     if (!res.ok) throw new Error(`getPeopleList HTTP ${res.status}`);
     return await res.json();
 }
@@ -24,12 +52,8 @@ async function getPeopleList(apiUrl) {
 async function getTypesList(apiUrl) {
     const res = await fetch(`${apiUrl}?cmd=getTypesList`, { 
         method: 'GET',
-        credentials: 'include',
-        headers: {
-            'Authorization': AUTH_HEADER
-        }
+        headers: { 'Authorization': AUTH_HEADER }
     });
-
     if (!res.ok) throw new Error(`getTypesList HTTP ${res.status}`);
     return await res.json();
 }
@@ -41,16 +65,13 @@ async function saveDrinks(apiUrl, data) {
             "Content-Type": "application/json",
             "Authorization": AUTH_HEADER
         },
-        body: JSON.stringify(data),
-        credentials: 'include'
+        body: JSON.stringify(data)
     });
-
     if (!res.ok) throw new Error(`saveDrinks HTTP ${res.status}`);
     return await res.json();
 }
 
 function renderPeople(select, people) {
-
     let blank = document.createElement("option");
     blank.disabled = true;
     blank.selected = true;
@@ -63,14 +84,11 @@ function renderPeople(select, people) {
         option.textContent = p.name;
         select.append(option);
     });
-
     loadSavedUser(select);
 }
 
 function renderTypes(container, types) {
-
     Object.values(types).forEach(t => {
-
         const wrapper = document.createElement("div");
         wrapper.classList.add("drink-row");
 
@@ -95,7 +113,6 @@ function renderTypes(container, types) {
         minus.addEventListener("click", () => {
             if (input.valueAsNumber > 0) input.valueAsNumber--;
         });
-
         plus.addEventListener("click", () => {
             if (input.valueAsNumber < Number(input.max)) input.valueAsNumber++;
         });
@@ -115,31 +132,18 @@ function renderSubmit(form) {
 
 function saveUser(userId) {
     localStorage.setItem("lastUser", userId);
-    sessionStorage.setItem("lastUser", userId);
-    document.cookie = `lastUser=${userId}; path=/; max-age=31536000`;
 }
 
 function loadSavedUser(select) {
-    let userId =
-        localStorage.getItem("lastUser") ||
-        sessionStorage.getItem("lastUser") ||
-        getCookie("lastUser");
-
-    if (userId) {
-        select.value = userId;
-    }
+    let userId = localStorage.getItem("lastUser");
+    if (userId) select.value = userId;
 }
 
-function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(";").shift();
-}
 
 document.addEventListener('DOMContentLoaded', async () => {
+    syncOfflineData();
 
     const form = document.getElementById("myForm");
-
     const userSelect = document.createElement("select");
     userSelect.id = "userSelect";
     document.querySelector(".form-header").append(userSelect);
@@ -148,11 +152,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     drinksContainer.classList.add("drinks-container");
     form.append(drinksContainer);
 
-    const people = await getPeopleList(url);
-    renderPeople(userSelect, people);
-
-    const types = await getTypesList(url);
-    renderTypes(drinksContainer, types);
+    try {
+        const people = await getPeopleList(url);
+        renderPeople(userSelect, people);
+        const types = await getTypesList(url);
+        renderTypes(drinksContainer, types);
+    } catch (e) {
+        console.error("Nepodařilo se načíst data z API.");
+    }
 
     renderSubmit(form);
 
@@ -166,47 +173,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         inputs.forEach(input => {
             let amount = parseInt(input.value) || 0;
             if (amount > 0) {
-                drinks.push({
-                    type: input.dataset.type,
-                    value: amount
-                });
+                drinks.push({ type: input.dataset.type, value: amount });
             }
         });
 
-        const payload = {
-            user: selectedUser,
-            drinks: drinks
-        };
-
         const submitButton = document.getElementById("submitButton");
 
-        if(selectedUser == "Vyber uživatele") {
-            submitButton.innerHTML = "Musíš vybrat uživatele!"
-            setTimeout(() => {
-                submitButton.innerHTML = "Uložit"
-            }, 2000);
+        if(selectedUser === "Vyber uživatele" || drinks.length === 0) {
+            submitButton.innerHTML = "Vyber uživatele a aspoň jeden drink!";
+            setTimeout(() => { submitButton.innerHTML = "Uložit" }, 2000);
             return;
         }
 
-        if(drinks.length == 0) {
-            submitButton.innerHTML = "Musíš zadat aspoň jeden drink!"
-            setTimeout(() => {
-                submitButton.innerHTML = "Uložit"
-            }, 2000);
-            return;
-        }
+        const payload = { user: selectedUser, drinks: drinks };
 
         try {
+            if (!navigator.onLine) {
+                throw new Error("Jste offline");
+            }
+
             await saveDrinks(url, payload);
-            submitButton.innerHTML = "Uloženo!"
+            submitButton.innerHTML = "Uloženo!";
             saveUser(selectedUser);
             inputs.forEach(i => i.value = 0);
-            setTimeout(() => {
-                submitButton.innerHTML = "Uložit"
-            }, 2000);
         } catch (err) {
-            alert(err);
+            addToOfflineQueue(payload);
+            submitButton.innerHTML = "Uloženo do fronty (offline)";
+            saveUser(selectedUser);
+            inputs.forEach(i => i.value = 0);
         }
-    });
 
+        setTimeout(() => { submitButton.innerHTML = "Uložit" }, 3000);
+    });
 });
